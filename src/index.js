@@ -60,7 +60,7 @@ export const connect = (...args) => {
     render() {
       return createElement(
         Comp,
-        Object.assign({}, this.props, this.state, this.actionCreators)
+        Object.assign({}, { ...this.props, ref: this.props.refToForward }, this.state, this.actionCreators)
       )
     }
   }
