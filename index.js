@@ -79,7 +79,8 @@ var connect = function () {
     };
 
     Connect.prototype.render = function render () {
-      return react.createElement(Comp, Object.assign({}, this.props, this.state, this.actionCreators));
+      return react.createElement(Comp, Object.assign({}, Object.assign({}, this.props,
+        {ref: this.props.refToForward}), this.state, this.actionCreators));
     };
 
     return Connect;
