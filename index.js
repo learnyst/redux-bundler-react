@@ -1,96 +1,73 @@
-var react = require('react');
+const React = require('react');
 
-var CONTEXT_TYPES = {
-  store: function () {}
-};
-var Provider = /*@__PURE__*/(function (Component) {
-  function Provider () {
-    Component.apply(this, arguments);
+const StoreContext = React.createContext();
+
+class Provider extends React.Component {
+  render() {
+    return (
+      <StoreContext.Provider value={this.props.store}>
+        {React.Children.only(this.props.children)}
+      </StoreContext.Provider>
+    );
   }
+}
 
-  if ( Component ) Provider.__proto__ = Component;
-  Provider.prototype = Object.create( Component && Component.prototype );
-  Provider.prototype.constructor = Provider;
-
-  Provider.prototype.getChildContext = function getChildContext () {
-    return {
-      store: this.props.store
-    };
-  };
-
-  Provider.prototype.render = function render () {
-    return react.Children.only(this.props.children);
-  };
-
-  return Provider;
-}(react.Component));
-Provider.childContextTypes = CONTEXT_TYPES;
-var connect = function () {
-  var args = [], len = arguments.length;
-  while ( len-- ) args[ len ] = arguments[ len ];
-
-  var Comp = args.slice(-1)[0];
-  var strings = args.length > 1 ? args.slice(0, -1) : [];
-  var actionCreators = [];
-  var keysToWatch = [];
-  strings.forEach(function (str) {
-    if (str.slice(0, 6) === 'select') {
+const connect = function (...args) {
+  const Comp = args.slice(-1)[0];
+  const strings = args.length > 1 ? args.slice(0, -1) : [];
+  const actionCreators = [];
+  const keysToWatch = [];
+  
+  strings.forEach((str) => {
+    if (str.startsWith('select')) {
       keysToWatch.push(str);
-      return;
-    }
-
-    if (str.slice(0, 2) === 'do') {
+    } else if (str.startsWith('do')) {
       actionCreators.push(str);
-      return;
+    } else {
+      throw new Error(`CanNotConnect ${str}`);
     }
-
-    throw Error(("CanNotConnect " + str));
   });
 
-  var Connect = /*@__PURE__*/(function (Component) {
-    function Connect(props, context) {
-      var this$1 = this;
+  class Connect extends React.Component {
+    static contextType = StoreContext;
 
-      Component.call(this, props, context);
-      var store = context.store;
+    constructor(props, context) {
+      super(props, context);
+      const store = this.context;
       this.state = store.select(keysToWatch);
       this.unsubscribe = store.subscribeToSelectors(keysToWatch, this.setState.bind(this));
+      
       this.actionCreators = {};
-      actionCreators.forEach(function (name) {
-        this$1.actionCreators[name] = function () {
-          var args = [], len = arguments.length;
-          while ( len-- ) args[ len ] = arguments[ len ];
-
+      actionCreators.forEach((name) => {
+        this.actionCreators[name] = (...args) => {
           if (store.action) {
             return store.action(name, args);
           }
-
-          return store[name].apply(store, args);
+          return store[name](...args);
         };
       });
     }
 
-    if ( Component ) Connect.__proto__ = Component;
-    Connect.prototype = Object.create( Component && Component.prototype );
-    Connect.prototype.constructor = Connect;
-
-    Connect.prototype.componentWillUnmount = function componentWillUnmount () {
+    componentWillUnmount() {
       this.unsubscribe();
-    };
+    }
 
-    Connect.prototype.render = function render () {
-      return react.createElement(Comp, Object.assign({}, Object.assign({}, this.props,
-        {ref: this.props.refToForward}), this.state, this.actionCreators));
-    };
+    render() {
+      return React.createElement(
+        Comp,
+        {
+          ...this.props,
+          ...this.state,
+          ...this.actionCreators,
+          ref: this.props.refToForward,
+        }
+      );
+    }
+  }
 
-    return Connect;
-  }(react.Component));
-
-  Connect.contextTypes = CONTEXT_TYPES;
-  Connect.displayName = react.Component.displayName || react.Component.name;
+  Connect.displayName = `Connect(${Comp.displayName || Comp.name})`;
   return Connect;
 };
 
 exports.Provider = Provider;
 exports.connect = connect;
-//# sourceMappingURL=index.js.map
