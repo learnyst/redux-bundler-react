@@ -9,7 +9,7 @@ class Provider extends React.Component {
         {React.Children.only(this.props.children)}
       </StoreContext.Provider>
     );
-  }
+  } 
 }
 
 const connect = function (...args) {

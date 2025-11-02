@@ -1,4 +1,5 @@
 const React = require('react');
+const { useContext, useMemo, useState, useEffect } = React;
 
 const StoreContext = React.createContext();
 
@@ -28,42 +29,38 @@ const connect = function (...args) {
     }
   });
 
-  class Connect extends React.Component {
-    static contextType = StoreContext;
-
-    constructor(props, context) {
-      super(props, context);
-      const store = this.context;
-      this.state = store.select(keysToWatch);
-      this.unsubscribe = store.subscribeToSelectors(keysToWatch, this.setState.bind(this));
+  const Connect = (props) => {
+    const store = useContext(StoreContext);
+    const [state, setState] = useState(() => store.select(keysToWatch));
+    
+    useEffect(() => {
+      const unsubscribe = store.subscribeToSelectors(keysToWatch, () => {
+        const newState = store.select(keysToWatch);
+        setState(newState);
+      });
       
-      this.actionCreators = {};
+      return unsubscribe;
+    }, [store, keysToWatch.join()]);
+
+    const actions = useMemo(() => {
+      const actionMap = {};
       actionCreators.forEach((name) => {
-        this.actionCreators[name] = (...args) => {
+        actionMap[name] = (...args) => {
           if (store.action) {
             return store.action(name, args);
           }
           return store[name](...args);
         };
       });
-    }
-
-    componentWillUnmount() {
-      this.unsubscribe();
-    }
-
-    render() {
-      return React.createElement(
-        Comp,
-        {
-          ...this.props,
-          ...this.state,
-          ...this.actionCreators,
-          ref: this.props.refToForward,
-        }
-      );
-    }
-  }
+      return actionMap;
+    }, [store, actionCreators.join()]);
+    
+    return React.createElement(Comp, {
+      ...props,
+      ...state,
+      ...actions,
+    });
+  };
 
   Connect.displayName = `Connect(${Comp.displayName || Comp.name})`;
   return Connect;
